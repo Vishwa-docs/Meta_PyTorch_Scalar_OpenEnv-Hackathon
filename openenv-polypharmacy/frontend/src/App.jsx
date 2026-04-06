@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const API_BASE = "http://localhost:7860";
-const WS_URL = "ws://localhost:7860/ws";
+function resolveApiBase() {
+  const explicitBase = import.meta.env.VITE_API_BASE;
+  if (explicitBase) return explicitBase.replace(/\/$/, "");
+
+  const host = window.location.hostname;
+  const isLocal =
+    host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+
+  // In local Vite dev, backend runs on :7860. In Spaces/prod, serve same-origin.
+  if (isLocal && window.location.port === "5173") {
+    return "http://localhost:7860";
+  }
+  return window.location.origin.replace(/\/$/, "");
+}
+
+const API_BASE = resolveApiBase();
+const WS_URL = `${API_BASE.replace(/^http/, "ws")}/ws`;
 const TASKS = ["easy_screening", "budgeted_screening", "complex_tradeoff"];
 
 async function apiPost(path, body) {
@@ -225,6 +240,7 @@ export default function App() {
       <header className="topbar glass">
         <div className="title-wrap">
           <h1>Polypharmacy Control Center</h1>
+          <p>Metaverse Clinical Ops Console</p>
         </div>
         <div className={`status-chip ${hasValidEpisode ? "live" : "idle"}`}>
           {hasValidEpisode ? "Session Live" : "Waiting for reset"}
