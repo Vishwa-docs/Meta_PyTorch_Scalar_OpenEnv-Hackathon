@@ -1,184 +1,245 @@
 # PolypharmacyEnv
 
-An [OpenEnv](https://github.com/meta-pytorch/OpenEnv)-compliant reinforcement-learning environment that simulates **elderly polypharmacy medication review**. An RL agent acts as a clinical pharmacist assistant, identifying dangerous drug-drug interactions (DDIs), Beers-criteria violations, and proposing safe interventions.
+Monorepo for an OpenEnv-compatible medication safety environment with:
+
+- a FastAPI backend (`backend/`)
+- a React frontend (`frontend/`)
+- data assets (`data/`)
+- utility scripts (`scripts/`)
 
 ---
 
-## Motivation
+## Repository Structure
 
-Polypharmacy (concurrent use of multiple medications) is extremely common in elderly patients (age >= 65) and carries significant risks:
-
-- **Drug-drug interactions** can cause adverse events, hospitalisation, and death.
-- **Beers-criteria violations** flag medications that are inappropriate or require dose adjustments in older adults.
-- Stopping critical medications (anticoagulants, insulin) without proper substitution can be equally dangerous.
-
-This environment lets RL and LLM-based agents learn to **balance risk reduction against regimen stability**.
-
----
-
-## Action Space
-
-Each step, the agent sends a `PolypharmacyAction` with one of three action types:
-
-| `action_type` | Required fields | Description |
-|---|---|---|
-| `query_ddi` | `drug_id_1`, `drug_id_2` | Query the DDI database for an interaction between two drugs |
-| `propose_intervention` | `target_drug_id`, `intervention_type` | Propose changing a medication (`stop`, `dose_reduce`, `substitute`, `add_monitoring`) |
-| `finish_review` | — | End the review and trigger final grading |
-
-Optional fields: `proposed_new_drug_id`, `rationale`.
-
-## Observation Space
-
-`PolypharmacyObservation` includes:
-
-- **Patient demographics**: `age`, `sex`, `conditions`, `eGFR_category`, `liver_function_category`
-- **Medications**: list of `MedicationEntry` (drug_id, name, class, dose, high-risk flags, Beers flags)
-- **History**: `interaction_queries` (past DDI query results), `interventions` (past actions)
-- **Budgets**: `remaining_query_budget`, `remaining_intervention_budget`
-- **Reward signals**: `shaped_reward`, `done`
-
-## State
-
-`PolypharmacyState`: `episode_id`, `task_id`, `step_count`, `max_steps`, `num_query_actions`, `num_interventions`.
-
----
-
-## Tasks
-
-| Task ID | Difficulty | Drugs | Query Budget | Intervention Budget | Max Steps | Description |
-|---|---|---|---|---|---|---|
-| `easy_screening` | Easy | 3-5 | 4 | 2 | 10 | One severe DDI, simple resolution |
-| `budgeted_screening` | Medium | 6-10 | 8 | 3 | 20 | Multiple DDIs + Beers issues, limited budgets |
-| `complex_tradeoff` | Hard | 10-15 | 12 | 5 | 30 | Critical drugs, trade-off between risk and regimen stability |
-
----
-
-## Reward Structure
-
-**Per-step shaped rewards:**
-
-| Event | Reward |
-|---|---|
-| DDI query | -0.01 (cost) + 0.03 bonus if severe DDI discovered |
-| Successful intervention | +(previous_risk - new_risk) - 0.02 cost |
-| Invalid action | -0.10 penalty |
-| Timeout (max steps exceeded) | -0.20 penalty |
-| `finish_review` | + grader score (0.0 to 1.0) |
-
-**Terminal grader scoring:**
-- **Easy**: 50% risk reduction + 50% targeted intervention flag
-- **Medium**: 50% risk reduction + 30% intervention precision + 20% query efficiency
-- **Hard**: risk reduction - regimen disruption penalty - critical drug penalty
-
----
-
-## Setup & Usage
-
-### Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### Generate synthetic data
-
-```bash
-python3 scripts/preprocess_data.py
-```
-
-### Run the API server locally
-
-```bash
-PYTHONPATH=src uvicorn polypharmacy_env.api.server:app --host 0.0.0.0 --port 7860
-```
-
-### Run the heuristic baseline
-
-```bash
-PYTHONPATH=src python3 -m polypharmacy_env.baselines.heuristic_agent
-```
-
-### Run tests
-
-```bash
-PYTHONPATH=src python3 -m pytest src/polypharmacy_env/tests/ -v
-```
-
-### Run `inference.py` (LLM baseline)
-
-```bash
-# Start the server first, then in another terminal:
-export OPENAI_API_KEY="sk-..."
-export MODEL_NAME="gpt-4.1"
-export POLYPHARMACY_ENV_URL="http://localhost:7860"
-python3 inference.py
-```
-
-### Docker
-
-```bash
-docker build -t polypharmacy-env .
-docker run -p 7860:7860 polypharmacy-env
-```
-
----
-
-## Hugging Face Space
-
-This repo is ready for deployment as a HF Space:
-
-- **Space type**: `docker`
-- **Tag**: `openenv`
-- The container listens on port 7860 and exposes `/reset`, `/step`, `/state`, `/health`.
-
----
-
-## Baseline Scores
-
-### Heuristic Agent (deterministic, rule-based)
-
-| Task | Avg Score | Avg Reward |
-|---|---|---|
-| `easy_screening` | ~0.96 | ~1.30 |
-| `budgeted_screening` | ~0.48 | ~0.45 |
-| `complex_tradeoff` | ~0.24 | ~0.11 |
-
-*(Scores vary by seed; run `scripts/run_validation.sh` for exact numbers.)*
-
----
-
-## Project Structure
-
-```
+```text
 openenv-polypharmacy/
-  openenv.yaml              # OpenEnv manifest
-  Dockerfile                # Container image
-  inference.py              # LLM baseline script
-  requirements.txt
-  pyproject.toml
-  src/polypharmacy_env/
-    config.py               # Constants, task configs
-    models.py               # Pydantic action/observation/state models
-    env_core.py             # PolypharmacyEnv implementation
-    tasks.py                # Task selection utilities
-    graders.py              # Deterministic graders (3 difficulty levels)
-    rewards.py              # Reward shaping logic
-    data_loader.py          # CSV data loading
-    ddi_simulator.py        # Drug interaction lookup engine
-    api/
-      server.py             # FastAPI HTTP server
-      schemas.py            # Request/response schemas
-    baselines/
-      heuristic_agent.py    # Rule-based baseline
-      random_agent.py       # Random baseline
-    tests/
-      test_env_core.py
-      test_api.py
+  backend/
+    main.py                      # ASGI entrypoint (uvicorn target)
+    requirements.txt             # Backend dependencies
+    Dockerfile                   # Backend container
+    src/polypharmacy_env/        # Python package source
+      api/
+        app.py                   # FastAPI/OpenEnv app assembly
+        server.py                # Compatibility import wrapper
+        routes/agent.py          # /agent/suggest route
+      services/
+        groq_agent.py            # Groq-based action suggestion logic
+      env_core.py                # OpenEnv environment core
+      models.py                  # Action/observation/state models
+      data_loader.py             # CSV loading
+      ddi_simulator.py           # DDI and Beers lookups
+      rewards.py                 # Reward shaping
+      graders.py                 # Task graders
+      tasks.py                   # Task/episode selection
+      tests/                     # Backend tests
+  frontend/
+    src/                         # React UI code
+    package.json
+    Dockerfile                   # Frontend container
   data/
-    lookups/                # Drug metadata, DDI rules, Beers criteria CSVs
-    processed/              # Synthetic patient episodes
+    lookups/                     # drug_metadata.csv, ddi_rules.csv, beers_criteria.csv
+    processed/                   # patients_polypharmacy.csv
   scripts/
-    preprocess_data.py      # Synthetic data generator
-    run_validation.sh       # Run tests + baseline
+    preprocess_data.py           # Synthetic data generation
+    dev_backend.sh               # Local backend run helper
+    dev_frontend.sh              # Local frontend run helper
+    run_validation.sh            # Tests + baseline validation
+  docker-compose.yml             # Full stack orchestration
+  openenv.yaml                   # OpenEnv manifest
+  inference.py                   # Optional CLI inference baseline
+  .env.example                   # Environment template
 ```
+
+---
+
+## What It Does
+
+The environment simulates elderly polypharmacy review. Agent actions:
+
+- `query_ddi`
+- `propose_intervention`
+- `finish_review`
+
+Supported tasks:
+
+- `easy_screening`
+- `budgeted_screening`
+- `complex_tradeoff`
+
+---
+
+## Prerequisites
+
+- Python 3.10+
+- Node.js 18+ (or 20+ recommended)
+- npm
+- Docker + Docker Compose (optional, for containerized run)
+
+---
+
+## Environment Setup
+
+Create `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Set values:
+
+- `GROQ_API_KEY=...` (required)
+- `GROQ_BASE_URL=https://api.groq.com/openai/v1` (recommended)
+- `GROQ_MODEL_NAME=llama-3.3-70b-versatile` (recommended)
+
+---
+
+## Local Run (Recommended During Development)
+
+### 1) Install dependencies
+
+Backend:
+
+```bash
+pip install -r backend/requirements.txt
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### 2) Generate/update synthetic data (if needed)
+
+```bash
+python scripts/preprocess_data.py
+```
+
+### 3) Start services in two terminals
+
+Terminal A:
+
+```bash
+./scripts/dev_backend.sh
+```
+
+Terminal B:
+
+```bash
+./scripts/dev_frontend.sh
+```
+
+### 4) Open app
+
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend health: [http://localhost:7860/health](http://localhost:7860/health)
+
+---
+
+## Docker Run
+
+Run both services:
+
+```bash
+docker compose up --build
+```
+
+Stop:
+
+```bash
+docker compose down
+```
+
+Ports:
+
+- backend: `7860`
+- frontend: `5173`
+
+---
+
+## Hugging Face Spaces Deployment (Docker)
+
+This repo now includes a **root `Dockerfile`** that builds frontend + backend into one container, so Spaces can host both API and UI together.
+
+### 1) Create a new Space
+
+- Go to [Hugging Face Spaces](https://huggingface.co/new-space)
+- Choose **Docker** SDK
+- Create the Space
+
+### 2) Add Space secrets/variables
+
+In Space Settings -> Variables and Secrets:
+
+- Secret: `GROQ_API_KEY`
+- Variable: `GROQ_BASE_URL=https://api.groq.com/openai/v1`
+- Variable: `GROQ_MODEL_NAME=llama-3.3-70b-versatile`
+
+### 3) Push this repository to the Space
+
+Commit and push all files, including root `Dockerfile`.
+
+### 4) Verify after build
+
+- Space root URL loads the React UI
+- `/health` returns healthy status
+- OpenEnv endpoints are available (`/reset`, `/step`, `/state`, `/schema`)
+
+Notes:
+
+- Container reads `PORT` (defaults to `7860`) which is Space-friendly.
+- Frontend static assets are served by FastAPI from `frontend/dist`.
+
+---
+
+## API Endpoints
+
+OpenEnv/health:
+
+- `POST /reset`
+- `POST /step`
+- `GET /state`
+- `GET /health`
+- `GET /schema`
+- `WS /ws` (stateful session)
+
+AI helper:
+
+- `POST /agent/suggest`
+
+---
+
+## Testing
+
+Run backend tests:
+
+```bash
+python -m pytest backend/src/polypharmacy_env/tests -v
+```
+
+Or run validation script:
+
+```bash
+./scripts/run_validation.sh
+```
+
+---
+
+## Notes
+
+- OpenEnv HTTP reset/step is stateless; multi-step episode continuity should use websocket (`/ws`).
+- The frontend uses websocket for episode continuity and HTTP for AI suggestion.
+- AI behavior includes rule-based guardrails to avoid repetitive low-value loops.
+
+---
+
+## Troubleshooting
+
+- `ModuleNotFoundError: polypharmacy_env`
+  - Start backend using `./scripts/dev_backend.sh` from repo root.
+- `/agent/suggest` fails
+  - Check `.env` keys and restart backend.
+- UI state looks stale
+  - Hard refresh browser and click `Reset Episode`.

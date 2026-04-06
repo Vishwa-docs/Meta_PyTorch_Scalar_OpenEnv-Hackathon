@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: polypharmacy-backend
+    env_file:
+      - .env
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./data:/app/data
+      - ./scripts:/app/scripts
+      - ./backend:/app/backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: polypharmacy-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

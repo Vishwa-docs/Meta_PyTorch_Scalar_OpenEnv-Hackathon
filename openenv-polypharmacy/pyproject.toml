@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "requests>=2.31.0",
     "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
     "openenv-core>=0.2.0",
 ]
 
@@ -25,11 +26,11 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["backend/src"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/polypharmacy_env/tests"]
-pythonpath = ["src"]
+testpaths = ["backend/src/polypharmacy_env/tests"]
+pythonpath = ["backend/src"]
 
 [tool.black]
 line-length = 99
