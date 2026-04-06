@@ -43,12 +43,11 @@ def run_random_episode(
         else:
             action = PolypharmacyAction(action_type="finish_review")
 
-        result = env.step(action)
-        obs = PolypharmacyObservation(**result["observation"])
-        total_reward += result["reward"]
+        obs = env.step(action)
+        total_reward += obs.reward or 0.0
         steps += 1
-        if result["done"]:
-            grader_score = result["info"].get("grader_score", 0.0)
+        if obs.done:
+            grader_score = obs.metadata.get("grader_score", 0.0)
             break
 
     return total_reward, grader_score, steps

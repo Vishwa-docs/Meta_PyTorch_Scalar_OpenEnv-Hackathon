@@ -10,6 +10,12 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from openenv.core.env_server.types import (
+    Action as OpenEnvAction,
+    Observation as OpenEnvObservation,
+    State as OpenEnvState,
+)
+
 
 # ── Auxiliary models ─────────────────────────────────────────────────────────
 
@@ -49,10 +55,11 @@ class InterventionRecord(BaseModel):
 
 # ── OpenEnv wire models ─────────────────────────────────────────────────────
 
-class PolypharmacyAction(BaseModel):
-    """Action sent by the agent each step."""
+class PolypharmacyAction(OpenEnvAction):
+    """Action sent by the agent each step.
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    Extends openenv.core.env_server.types.Action.
+    """
 
     action_type: Literal["query_ddi", "propose_intervention", "finish_review"]
     drug_id_1: Optional[str] = None
@@ -63,13 +70,16 @@ class PolypharmacyAction(BaseModel):
     ] = None
     proposed_new_drug_id: Optional[str] = None
     rationale: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
-class PolypharmacyObservation(BaseModel):
-    """Observation returned to the agent."""
+class PolypharmacyObservation(OpenEnvObservation):
+    """Observation returned to the agent.
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    Extends openenv.core.env_server.types.Observation which provides:
+    - done: bool
+    - reward: float | None
+    - metadata: Dict[str, Any]
+    """
 
     episode_id: str = ""
     task_id: str = "budgeted_screening"
@@ -85,19 +95,17 @@ class PolypharmacyObservation(BaseModel):
     remaining_query_budget: int = 0
     remaining_intervention_budget: int = 0
     shaped_reward: float = 0.0
-    done: bool = False
-    reward: Optional[float] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
-class PolypharmacyState(BaseModel):
-    """Compact state snapshot for the /state endpoint."""
+class PolypharmacyState(OpenEnvState):
+    """Compact state snapshot for the /state endpoint.
 
-    model_config = ConfigDict(extra="allow", validate_assignment=True)
+    Extends openenv.core.env_server.types.State which provides:
+    - episode_id: str | None
+    - step_count: int
+    """
 
-    episode_id: Optional[str] = None
     task_id: str = ""
-    step_count: int = Field(default=0, ge=0)
     max_steps: int = 0
     num_query_actions: int = 0
     num_interventions: int = 0

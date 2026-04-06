@@ -27,7 +27,7 @@ def run_heuristic_episode(
 
     Returns (total_reward, grader_score, steps).
     """
-    obs = env.reset(task_id=task_id, seed=seed)
+    obs = env.reset(seed=seed, task_id=task_id)
     total_reward = 0.0
     grader_score = 0.0
     steps = 0
@@ -52,17 +52,17 @@ def run_heuristic_episode(
             drug_id_1=a,
             drug_id_2=b,
         )
-        result = env.step(action)
-        obs = PolypharmacyObservation(**result["observation"])
-        total_reward += result["reward"]
+        obs = env.step(action)
+        reward = obs.reward or 0.0
+        total_reward += reward
         steps += 1
 
-        if result["done"]:
-            grader_score = result["info"].get("grader_score", 0.0)
+        if obs.done:
+            grader_score = obs.metadata.get("grader_score", 0.0)
             return total_reward, grader_score, steps
 
-        # Track severity
-        ddi_info = result["info"].get("ddi_result", {})
+        # Track severity from metadata
+        ddi_info = obs.metadata.get("ddi_result", {})
         sev = ddi_info.get("severity", "none")
         if sev == "severe":
             severe_pairs.append((a, b))
@@ -70,14 +70,13 @@ def run_heuristic_episode(
             moderate_pairs.append((a, b))
 
     # Phase 2: Intervene on severe DDI drugs first
-    current_ids = [m.drug_id for m in obs.current_medications]
     intervened: set[str] = set()
 
     def _try_intervene(
         target: str,
         rationale: str,
-    ) -> Tuple[bool, float, PolypharmacyObservation, int]:
-        """Try substitute then stop. Returns (success, total_reward, obs, steps)."""
+    ) -> Tuple[bool, PolypharmacyObservation]:
+        """Try substitute then stop. Returns (done, obs)."""
         nonlocal total_reward, steps
         # Try substitute first
         act = PolypharmacyAction(
@@ -86,38 +85,35 @@ def run_heuristic_episode(
             intervention_type="substitute",
             rationale=rationale,
         )
-        res = env.step(act)
-        obs_new = PolypharmacyObservation(**res["observation"])
-        total_reward += res["reward"]
+        obs_new = env.step(act)
+        total_reward += obs_new.reward or 0.0
         steps += 1
 
-        if res["done"]:
-            return True, total_reward, obs_new, steps
+        if obs_new.done:
+            return True, obs_new
 
         # If substitute failed, try stop
-        if res["info"].get("warning"):
+        if obs_new.metadata.get("warning"):
             if obs_new.remaining_intervention_budget <= 0:
-                return False, total_reward, obs_new, steps
+                return False, obs_new
             act2 = PolypharmacyAction(
                 action_type="propose_intervention",
                 target_drug_id=target,
                 intervention_type="stop",
                 rationale=f"No substitute; {rationale}",
             )
-            res2 = env.step(act2)
-            obs_new = PolypharmacyObservation(**res2["observation"])
-            total_reward += res2["reward"]
+            obs_new = env.step(act2)
+            total_reward += obs_new.reward or 0.0
             steps += 1
-            if res2["done"]:
-                return True, total_reward, obs_new, steps
+            if obs_new.done:
+                return True, obs_new
 
-        return False, total_reward, obs_new, steps
+        return False, obs_new
 
     # Intervene on severe pairs
     for a, b in severe_pairs:
         if obs.remaining_intervention_budget <= 0:
             break
-        # Pick the drug to intervene on (prefer the one not yet intervened)
         target = b if a in intervened else a
         if target in intervened:
             target = b
@@ -125,13 +121,10 @@ def run_heuristic_episode(
             continue
         intervened.add(target)
 
-        done, total_reward, obs, steps = _try_intervene(
-            target, f"Severe DDI between {a} and {b}"
-        )
+        done, obs = _try_intervene(target, f"Severe DDI between {a} and {b}")
         if done:
-            grader_score = env._run_grader() if not done else 0.0
-            # grader_score was already computed in step
-            return total_reward, result["info"].get("grader_score", 0.0), steps
+            grader_score = obs.metadata.get("grader_score", 0.0)
+            return total_reward, grader_score, steps
 
     # Phase 2b: Intervene on moderate DDI drugs
     for a, b in moderate_pairs:
@@ -144,11 +137,10 @@ def run_heuristic_episode(
             continue
         intervened.add(target)
 
-        done, total_reward, obs, steps = _try_intervene(
-            target, f"Moderate DDI between {a} and {b}"
-        )
+        done, obs = _try_intervene(target, f"Moderate DDI between {a} and {b}")
         if done:
-            return total_reward, result["info"].get("grader_score", 0.0), steps
+            grader_score = obs.metadata.get("grader_score", 0.0)
+            return total_reward, grader_score, steps
 
     # Phase 3: Address Beers-flagged "avoid" drugs
     for med in meds_sorted:
@@ -160,18 +152,19 @@ def run_heuristic_episode(
             continue
         if any("avoid" in f for f in med.beers_flags):
             intervened.add(med.drug_id)
-            done, total_reward, obs, steps = _try_intervene(
+            done, obs = _try_intervene(
                 med.drug_id, f"Beers criteria: {', '.join(med.beers_flags)}"
             )
             if done:
-                return total_reward, result["info"].get("grader_score", 0.0), steps
+                grader_score = obs.metadata.get("grader_score", 0.0)
+                return total_reward, grader_score, steps
 
     # Phase 4: Finish
     action = PolypharmacyAction(action_type="finish_review")
-    result = env.step(action)
-    total_reward += result["reward"]
+    obs = env.step(action)
+    total_reward += obs.reward or 0.0
     steps += 1
-    grader_score = result["info"].get("grader_score", 0.0)
+    grader_score = obs.metadata.get("grader_score", 0.0)
 
     return total_reward, grader_score, steps
 

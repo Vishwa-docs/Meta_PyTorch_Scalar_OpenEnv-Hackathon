@@ -6,6 +6,8 @@ from copy import deepcopy
 from itertools import combinations
 from typing import Any, Dict, List, Optional, Tuple
 
+from openenv.core.env_server.interfaces import Environment
+
 from .config import CRITICAL_DRUG_IDS, TaskConfig
 from .data_loader import PatientEpisode
 from .ddi_simulator import DDISimulator
@@ -26,10 +28,17 @@ from .rewards import compute_regimen_risk, compute_shaped_reward
 from .tasks import get_task_config, sample_episode
 
 
-class PolypharmacyEnv:
-    """OpenEnv-compliant environment for elderly polypharmacy medication review."""
+class PolypharmacyEnv(
+    Environment[PolypharmacyAction, PolypharmacyObservation, PolypharmacyState]
+):
+    """OpenEnv-compliant environment for elderly polypharmacy medication review.
+
+    Extends openenv.core.env_server.interfaces.Environment with typed
+    Action/Observation/State generics.
+    """
 
     def __init__(self) -> None:
+        super().__init__()
         self._sim = DDISimulator()
         self._task_cfg: Optional[TaskConfig] = None
         self._episode: Optional[PatientEpisode] = None
@@ -52,10 +61,11 @@ class PolypharmacyEnv:
 
     def reset(
         self,
-        task_id: Optional[str] = None,
         seed: Optional[int] = None,
         episode_id: Optional[str] = None,
+        **kwargs: Any,
     ) -> PolypharmacyObservation:
+        task_id = kwargs.get("task_id", None)
         self._task_cfg = get_task_config(task_id)
         self._episode = sample_episode(task_id, seed=seed, episode_id=episode_id)
 
@@ -95,9 +105,14 @@ class PolypharmacyEnv:
 
     # ── step ─────────────────────────────────────────────────────────────────
 
-    def step(self, action: PolypharmacyAction) -> Dict[str, Any]:
+    def step(
+        self,
+        action: PolypharmacyAction,
+        timeout_s: Optional[float] = None,
+        **kwargs: Any,
+    ) -> PolypharmacyObservation:
         if self._done:
-            return self._terminal_response("Episode already finished.")
+            return self._make_observation()
 
         assert self._task_cfg is not None
         assert self._episode is not None
@@ -114,7 +129,7 @@ class PolypharmacyEnv:
             )
             info["error"] = err
             self._step_count += 1
-            return self._check_timeout_and_respond(reward, info)
+            return self._check_timeout_and_build_obs(reward, info)
 
         if action.action_type == "query_ddi":
             reward, info = self._handle_query(action)
@@ -129,7 +144,7 @@ class PolypharmacyEnv:
             info["grader_score"] = score
 
         self._step_count += 1
-        return self._check_timeout_and_respond(reward, info)
+        return self._check_timeout_and_build_obs(reward, info)
 
     # ── state property ───────────────────────────────────────────────────────
 
@@ -137,8 +152,8 @@ class PolypharmacyEnv:
     def state(self) -> PolypharmacyState:
         return PolypharmacyState(
             episode_id=self._episode.episode_id if self._episode else None,
-            task_id=self._task_cfg.task_id if self._task_cfg else "",
             step_count=self._step_count,
+            task_id=self._task_cfg.task_id if self._task_cfg else "",
             max_steps=self._task_cfg.max_steps if self._task_cfg else 0,
             num_query_actions=len(self._interaction_queries),
             num_interventions=len(self._interventions),
@@ -353,9 +368,9 @@ class PolypharmacyEnv:
                 pairs.append(key)
         return pairs
 
-    def _check_timeout_and_respond(
+    def _check_timeout_and_build_obs(
         self, reward: float, info: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    ) -> PolypharmacyObservation:
         assert self._task_cfg is not None
 
         if not self._done and self._step_count >= self._task_cfg.max_steps:
@@ -373,24 +388,11 @@ class PolypharmacyEnv:
         info["current_risk"] = self._current_risk
         info["baseline_risk"] = self._baseline_risk
 
-        obs = self._make_observation(reward=reward)
-        return {
-            "observation": obs.model_dump(),
-            "reward": reward,
-            "done": self._done,
-            "info": info,
-        }
+        return self._make_observation(reward=reward, info=info)
 
-    def _terminal_response(self, msg: str) -> Dict[str, Any]:
-        obs = self._make_observation()
-        return {
-            "observation": obs.model_dump(),
-            "reward": 0.0,
-            "done": True,
-            "info": {"error": msg},
-        }
-
-    def _make_observation(self, reward: float = 0.0) -> PolypharmacyObservation:
+    def _make_observation(
+        self, reward: float = 0.0, info: Optional[Dict[str, Any]] = None,
+    ) -> PolypharmacyObservation:
         ep = self._episode
         cfg = self._task_cfg
         return PolypharmacyObservation(
@@ -410,4 +412,5 @@ class PolypharmacyEnv:
             shaped_reward=reward,
             done=self._done,
             reward=reward,
+            metadata=info or {},
         )

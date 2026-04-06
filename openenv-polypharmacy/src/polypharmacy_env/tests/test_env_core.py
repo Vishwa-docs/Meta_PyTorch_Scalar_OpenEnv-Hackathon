@@ -1,162 +1,192 @@
-"""Tests for PolypharmacyEnv core logic."""
+"""Tests for the PolypharmacyEnv core."""
 
 from __future__ import annotations
 
 import pytest
 
 from polypharmacy_env.env_core import PolypharmacyEnv
-from polypharmacy_env.models import PolypharmacyAction, PolypharmacyObservation
-
-
-@pytest.fixture
-def env() -> PolypharmacyEnv:
-    return PolypharmacyEnv()
+from polypharmacy_env.models import (
+    PolypharmacyAction,
+    PolypharmacyObservation,
+    PolypharmacyState,
+)
 
 
 class TestReset:
-    def test_reset_returns_observation(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="easy_screening", seed=0)
+    def test_reset_returns_observation(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="easy_screening", seed=42)
         assert isinstance(obs, PolypharmacyObservation)
         assert obs.done is False
         assert obs.step_index == 0
         assert len(obs.current_medications) >= 3
 
-    def test_reset_medium(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="budgeted_screening", seed=1)
+    def test_reset_medium(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="budgeted_screening", seed=0)
         assert obs.remaining_query_budget == 8
         assert obs.remaining_intervention_budget == 3
+        assert len(obs.current_medications) >= 6
 
-    def test_reset_hard(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="complex_tradeoff", seed=2)
+    def test_reset_hard(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="complex_tradeoff", seed=0)
         assert obs.remaining_query_budget == 12
         assert obs.remaining_intervention_budget == 5
+        assert len(obs.current_medications) >= 10
 
-    def test_default_task(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset()
+    def test_default_task(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(seed=0)
         assert obs.task_id == "budgeted_screening"
 
 
 class TestStep:
-    def test_query_ddi(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="easy_screening", seed=0)
+    def test_query_ddi(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="easy_screening", seed=42)
         meds = obs.current_medications
-        if len(meds) >= 2:
-            action = PolypharmacyAction(
-                action_type="query_ddi",
-                drug_id_1=meds[0].drug_id,
-                drug_id_2=meds[1].drug_id,
-            )
-            result = env.step(action)
-            assert "observation" in result
-            assert "reward" in result
-            assert result["done"] is False or result["done"] is True
+        assert len(meds) >= 2
 
-    def test_invalid_action_penalised(self, env: PolypharmacyEnv) -> None:
-        env.reset(task_id="easy_screening", seed=0)
         action = PolypharmacyAction(
             action_type="query_ddi",
-            drug_id_1=None,
-            drug_id_2=None,
+            drug_id_1=meds[0].drug_id,
+            drug_id_2=meds[1].drug_id,
         )
-        result = env.step(action)
-        assert result["reward"] < 0
+        obs = env.step(action)
+        assert isinstance(obs, PolypharmacyObservation)
+        assert obs.done is False
+        assert obs.step_index == 1
+        assert len(obs.interaction_queries) == 1
 
-    def test_finish_review(self, env: PolypharmacyEnv) -> None:
-        env.reset(task_id="easy_screening", seed=0)
+    def test_invalid_action_penalised(self) -> None:
+        env = PolypharmacyEnv()
+        env.reset(task_id="easy_screening", seed=42)
+
+        action = PolypharmacyAction(
+            action_type="propose_intervention",
+            target_drug_id=None,
+            intervention_type=None,
+        )
+        obs = env.step(action)
+        assert obs.reward is not None
+        assert obs.reward < 0  # penalty
+
+    def test_finish_review(self) -> None:
+        env = PolypharmacyEnv()
+        env.reset(task_id="easy_screening", seed=42)
+
         action = PolypharmacyAction(action_type="finish_review")
-        result = env.step(action)
-        assert result["done"] is True
-        assert "grader_score" in result["info"]
-        score = result["info"]["grader_score"]
+        obs = env.step(action)
+        assert obs.done is True
+        assert "grader_score" in obs.metadata
+        score = obs.metadata["grader_score"]
         assert 0.0 <= score <= 1.0
 
-    def test_intervention_stop(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="easy_screening", seed=0)
-        if obs.current_medications:
-            target = obs.current_medications[0].drug_id
+    def test_intervention_stop(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="easy_screening", seed=42)
+        target = obs.current_medications[0].drug_id
+        n_meds = len(obs.current_medications)
+
+        action = PolypharmacyAction(
+            action_type="propose_intervention",
+            target_drug_id=target,
+            intervention_type="stop",
+            rationale="test stop",
+        )
+        obs = env.step(action)
+        assert len(obs.current_medications) == n_meds - 1
+
+    def test_budget_exhaustion(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="easy_screening", seed=42)
+        meds = obs.current_medications
+
+        # Exhaust query budget (4 for easy)
+        for i in range(4):
+            a_idx = i % len(meds)
+            b_idx = (i + 1) % len(meds)
             action = PolypharmacyAction(
-                action_type="propose_intervention",
-                target_drug_id=target,
-                intervention_type="stop",
-                rationale="test",
+                action_type="query_ddi",
+                drug_id_1=meds[a_idx].drug_id,
+                drug_id_2=meds[b_idx].drug_id,
             )
-            result = env.step(action)
-            new_obs = PolypharmacyObservation(**result["observation"])
-            drug_ids = [m.drug_id for m in new_obs.current_medications]
-            assert target not in drug_ids
+            obs = env.step(action)
+            if obs.done:
+                break
 
-    def test_budget_exhaustion(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="easy_screening", seed=0)
-        # Exhaust query budget
-        meds = obs.current_medications
-        for _ in range(obs.remaining_query_budget + 1):
-            if len(meds) >= 2:
-                action = PolypharmacyAction(
-                    action_type="query_ddi",
-                    drug_id_1=meds[0].drug_id,
-                    drug_id_2=meds[1].drug_id,
-                )
-                result = env.step(action)
-                if result["done"]:
-                    break
-
-    def test_max_steps_timeout(self, env: PolypharmacyEnv) -> None:
-        obs = env.reset(task_id="easy_screening", seed=0)
-        meds = obs.current_medications
-        if len(meds) < 2:
-            return
-        for _ in range(20):  # more than max_steps=10
+        if not obs.done:
+            assert obs.remaining_query_budget == 0
+            # Trying another query should be penalised
             action = PolypharmacyAction(
                 action_type="query_ddi",
                 drug_id_1=meds[0].drug_id,
                 drug_id_2=meds[1].drug_id,
             )
-            result = env.step(action)
-            if result["done"]:
-                assert "grader_score" in result["info"] or "timeout" in result["info"]
+            obs = env.step(action)
+            assert obs.reward is not None
+            assert obs.reward < 0
+
+    def test_max_steps_timeout(self) -> None:
+        env = PolypharmacyEnv()
+        obs = env.reset(task_id="easy_screening", seed=42)  # max_steps=10
+        meds = obs.current_medications
+
+        # Keep querying until timeout
+        for i in range(15):
+            if obs.done:
                 break
+            a = meds[i % len(meds)].drug_id
+            b = meds[(i + 1) % len(meds)].drug_id
+            action = PolypharmacyAction(
+                action_type="query_ddi",
+                drug_id_1=a,
+                drug_id_2=b,
+            )
+            obs = env.step(action)
+
+        assert obs.done is True
 
 
 class TestState:
-    def test_state_after_reset(self, env: PolypharmacyEnv) -> None:
-        env.reset(task_id="easy_screening", seed=0)
+    def test_state_after_reset(self) -> None:
+        env = PolypharmacyEnv()
+        env.reset(task_id="easy_screening", seed=42)
         st = env.state
+        assert isinstance(st, PolypharmacyState)
         assert st.step_count == 0
-        assert st.task_id == "easy_screening"
         assert st.episode_id is not None
 
 
 class TestGraderDeterminism:
-    def test_same_trajectory_same_score(self, env: PolypharmacyEnv) -> None:
-        """Run the same trajectory twice; grader must return the same score."""
+    def test_same_trajectory_same_score(self) -> None:
         scores = []
-        for _ in range(2):
-            env.reset(task_id="easy_screening", seed=42)
-            action = PolypharmacyAction(action_type="finish_review")
-            result = env.step(action)
-            scores.append(result["info"]["grader_score"])
-        assert scores[0] == scores[1]
+        for _ in range(3):
+            env = PolypharmacyEnv()
+            env.reset(task_id="easy_screening", seed=99)
+            obs = env.step(PolypharmacyAction(action_type="finish_review"))
+            scores.append(obs.metadata.get("grader_score", 0.0))
+        assert all(s == scores[0] for s in scores)
 
-    def test_intervention_changes_score(self, env: PolypharmacyEnv) -> None:
-        """A meaningful intervention should change the grader score vs. no-op."""
-        # Score with no intervention
-        env.reset(task_id="easy_screening", seed=42)
-        r1 = env.step(PolypharmacyAction(action_type="finish_review"))
-        score_noop = r1["info"]["grader_score"]
+    def test_intervention_changes_score(self) -> None:
+        # No intervention
+        env = PolypharmacyEnv()
+        env.reset(task_id="budgeted_screening", seed=42)
+        obs = env.step(PolypharmacyAction(action_type="finish_review"))
+        score_noop = obs.metadata.get("grader_score", 0.0)
 
-        # Score after stopping a high-risk drug
-        obs = env.reset(task_id="easy_screening", seed=42)
-        high_risk = [m for m in obs.current_medications if m.is_high_risk_elderly]
-        if high_risk:
-            env.step(PolypharmacyAction(
+        # With intervention
+        env2 = PolypharmacyEnv()
+        obs_init2 = env2.reset(task_id="budgeted_screening", seed=42)
+        if obs_init2.current_medications:
+            env2.step(PolypharmacyAction(
                 action_type="propose_intervention",
-                target_drug_id=high_risk[0].drug_id,
+                target_drug_id=obs_init2.current_medications[0].drug_id,
                 intervention_type="stop",
                 rationale="test",
             ))
-            r2 = env.step(PolypharmacyAction(action_type="finish_review"))
-            score_with = r2["info"]["grader_score"]
-            # Scores should differ (not necessarily larger, depending on the drug)
-            # At minimum, grader is not constant
-            assert isinstance(score_with, float)
-            assert 0.0 <= score_with <= 1.0
+        obs2 = env2.step(PolypharmacyAction(action_type="finish_review"))
+        score_act = obs2.metadata.get("grader_score", 0.0)
+
+        assert score_noop != score_act
