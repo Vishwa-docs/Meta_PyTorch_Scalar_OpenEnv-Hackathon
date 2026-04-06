@@ -1,0 +1,25 @@
+drug_id_1,drug_id_2,severity,mechanism,recommendation,base_risk_score
+DRUG_NAPROXEN,DRUG_WARFARIN,severe,Increased bleeding risk – NSAID inhibits platelet + anticoagulant,avoid_combination,0.9
+DRUG_IBUPROFEN,DRUG_WARFARIN,severe,Increased bleeding risk – NSAID + anticoagulant synergy,avoid_combination,0.88
+DRUG_ASPIRIN,DRUG_WARFARIN,moderate,Additive antiplatelet + anticoagulant bleeding risk,monitor_closely,0.55
+DRUG_FLUOXETINE,DRUG_WARFARIN,moderate,SSRI increases serotonin and may potentiate bleeding,monitor_closely,0.45
+DRUG_CIPROFLOXACIN,DRUG_WARFARIN,moderate,CYP1A2 inhibition raises warfarin levels,dose_adjust,0.5
+DRUG_APIXABAN,DRUG_NAPROXEN,severe,DOAC + NSAID – high bleeding risk,avoid_combination,0.85
+DRUG_APIXABAN,DRUG_ASPIRIN,moderate,Additive bleeding risk with antiplatelet,monitor_closely,0.5
+DRUG_AMIODARONE,DRUG_DIGOXIN,severe,Amiodarone increases digoxin levels – toxicity risk,dose_adjust,0.8
+DRUG_DIGOXIN,DRUG_SPIRONOLACTONE,moderate,Spironolactone may raise digoxin levels,monitor_closely,0.4
+DRUG_CIPROFLOXACIN,DRUG_METFORMIN,moderate,Fluoroquinolone may cause dysglycemia with metformin,monitor_closely,0.35
+DRUG_DIAZEPAM,DRUG_TRAMADOL,severe,CNS depression – benzodiazepine + opioid,avoid_combination,0.92
+DRUG_ALPRAZOLAM,DRUG_TRAMADOL,severe,CNS depression – benzodiazepine + opioid,avoid_combination,0.91
+DRUG_LISINOPRIL,DRUG_SPIRONOLACTONE,moderate,Hyperkalemia risk – ACE-I + K-sparing diuretic,monitor_closely,0.48
+DRUG_LISINOPRIL,DRUG_NAPROXEN,moderate,"NSAID reduces ACE-I efficacy, renal risk",monitor_closely,0.42
+DRUG_AMLODIPINE,DRUG_SIMVASTATIN,moderate,CYP3A4 interaction increases statin exposure,dose_adjust,0.38
+DRUG_ATORVASTATIN,DRUG_CIPROFLOXACIN,mild,Minor CYP interaction raising statin levels,no_action,0.15
+DRUG_CLOPIDOGREL,DRUG_OMEPRAZOLE,moderate,PPI reduces clopidogrel activation via CYP2C19,dose_adjust,0.45
+DRUG_GLIPIZIDE,DRUG_INSULIN_GLARGINE,moderate,Additive hypoglycemia risk,monitor_closely,0.5
+DRUG_FLUOXETINE,DRUG_TRAMADOL,severe,Serotonin syndrome risk – SSRI + serotonergic opioid,avoid_combination,0.82
+DRUG_AMITRIPTYLINE,DRUG_TRAMADOL,severe,Serotonin syndrome + CNS depression,avoid_combination,0.85
+DRUG_DIGOXIN,DRUG_METOPROLOL,moderate,Additive bradycardia,monitor_closely,0.4
+DRUG_DIGOXIN,DRUG_FUROSEMIDE,moderate,Loop diuretic causes hypokalemia increasing digoxin toxicity risk,monitor_closely,0.45
+DRUG_NAPROXEN,DRUG_PREDNISONE,moderate,GI bleeding risk – corticosteroid + NSAID,monitor_closely,0.5
+DRUG_PREDNISONE,DRUG_WARFARIN,mild,Corticosteroid may alter INR,monitor_closely,0.25

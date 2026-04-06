@@ -1,0 +1,16 @@
+drug_id,criterion_type,condition,rationale
+DRUG_DIAZEPAM,avoid,,"Long-acting benzodiazepine: falls, fractures, cognitive impairment in elderly"
+DRUG_ALPRAZOLAM,avoid,,"Benzodiazepine: falls, fractures, cognitive impairment in elderly"
+DRUG_AMITRIPTYLINE,avoid,,"Strongly anticholinergic TCA: sedation, confusion, urinary retention in elderly"
+DRUG_GLIPIZIDE,caution,,Sulfonylurea: hypoglycemia risk higher in elderly
+DRUG_NAPROXEN,avoid,CKD,"NSAID contraindicated in CKD – renal deterioration, fluid retention"
+DRUG_IBUPROFEN,avoid,CKD,"NSAID contraindicated in CKD – renal deterioration, fluid retention"
+DRUG_NAPROXEN,caution,,NSAID: GI bleeding and renal risk in elderly
+DRUG_IBUPROFEN,caution,,NSAID: GI bleeding and renal risk in elderly
+DRUG_DIGOXIN,dose_adjust,,Avoid doses > 0.125 mg/day in elderly – toxicity risk
+DRUG_TRAMADOL,avoid,,"Opioid: CNS depression, falls, constipation in elderly"
+DRUG_METFORMIN,dose_adjust,CKD,Reduce dose or avoid if eGFR < 30 – lactic acidosis risk
+DRUG_INSULIN_GLARGINE,caution,,Tight glycemic control increases hypoglycemia risk in elderly
+DRUG_PREDNISONE,avoid_in_condition,DM,Corticosteroid worsens glycemic control in diabetes
+DRUG_DONEPEZIL,avoid_in_condition,dementia,"Limited benefit, GI side effects; reassess regularly"
+DRUG_CIPROFLOXACIN,caution,,"Fluoroquinolone: tendon rupture, QT prolongation risk in elderly"

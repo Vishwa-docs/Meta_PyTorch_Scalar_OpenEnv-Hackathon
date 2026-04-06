@@ -1,0 +1,30 @@
+spec_version: 1
+name: polypharmacy_env
+version: "0.1.0"
+description: >
+  An OpenEnv environment that simulates elderly polypharmacy medication review.
+  An RL agent acts as a clinical pharmacist assistant, identifying dangerous
+  drug–drug interactions, Beers-criteria violations, and proposing safe
+  interventions (stop, dose-reduce, substitute, monitor).
+author: "PolypharmacyEnv Team"
+tags:
+  - healthcare
+  - polypharmacy
+  - openenv
+type: space
+runtime: fastapi
+app: src.polypharmacy_env.api.server:app
+port: 7860
+
+tasks:
+  - id: easy_screening
+    description: "Small regimen (3-5 drugs) with one severe DDI. Identify and resolve it."
+    difficulty: easy
+
+  - id: budgeted_screening
+    description: "Medium regimen (6-10 drugs) with multiple DDIs and Beers issues under query/intervention budgets."
+    difficulty: medium
+
+  - id: complex_tradeoff
+    description: "Large regimen (10-15 drugs) including critical drugs. Balance risk reduction against regimen disruption."
+    difficulty: hard
