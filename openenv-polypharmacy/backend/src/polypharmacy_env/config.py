@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-PROJECT_ROOT = Path(__file__).resolve().parents[2]  # openenv-polypharmacy/
+PROJECT_ROOT = Path(__file__).resolve().parents[3]  # openenv-polypharmacy/
 DATA_DIR = PROJECT_ROOT / "data"
 LOOKUPS_DIR = DATA_DIR / "lookups"
 PROCESSED_DIR = DATA_DIR / "processed"

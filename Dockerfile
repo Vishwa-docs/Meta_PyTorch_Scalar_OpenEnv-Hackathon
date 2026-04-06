@@ -1,8 +1,8 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
-COPY frontend/package*.json ./
+COPY openenv-polypharmacy/frontend/package*.json ./
 RUN npm ci
-COPY frontend/ ./
+COPY openenv-polypharmacy/frontend/ ./
 RUN npm run build
 
 FROM python:3.11-slim
@@ -13,15 +13,15 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY backend/requirements.txt /app/backend/requirements.txt
+COPY openenv-polypharmacy/backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
-COPY backend /app/backend
-COPY data /app/data
-COPY scripts /app/scripts
-COPY openenv.yaml /app/openenv.yaml
-COPY .env.example /app/.env.example
-COPY inference.py /app/inference.py
+COPY openenv-polypharmacy/backend /app/backend
+COPY openenv-polypharmacy/data /app/data
+COPY openenv-polypharmacy/scripts /app/scripts
+COPY openenv-polypharmacy/openenv.yaml /app/openenv.yaml
+COPY openenv-polypharmacy/.env.example /app/.env.example
+COPY openenv-polypharmacy/inference.py /app/inference.py
 
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 

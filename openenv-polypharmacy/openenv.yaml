@@ -13,7 +13,7 @@ tags:
   - openenv
 type: space
 runtime: fastapi
-app: polypharmacy_env.api.server:app
+app: backend.main:app
 port: 7860
 
 tasks:

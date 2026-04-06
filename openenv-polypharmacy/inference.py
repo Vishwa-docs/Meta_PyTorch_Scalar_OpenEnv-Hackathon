@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Baseline LLM inference script for the PolypharmacyEnv.
 
-Uses the OpenAI Python client to drive an LLM agent through the
+Uses Groq's OpenAI-compatible Chat Completions API to drive an LLM agent through the
 PolypharmacyEnv HTTP API.  Emits structured stdout logs in the
 [START], [STEP], [END] format required by the OpenEnv evaluation spec.
 
 Environment variables:
-  OPENAI_API_KEY        – required
-  API_BASE_URL          – LLM endpoint (default: https://api.openai.com/v1)
-  MODEL_NAME            – model to use (default: gpt-4.1)
-  HF_TOKEN              – HuggingFace token (optional)
+  GROQ_API_KEY          – required
+  GROQ_BASE_URL         – optional (default: https://api.groq.com/openai/v1)
+  GROQ_MODEL_NAME       – model to use (default: llama-3.1-8b-instant)
   POLYPHARMACY_ENV_URL  – environment HTTP base URL (default: http://localhost:7860)
 """
 
@@ -18,7 +17,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
 import uuid
 from typing import Any, Dict, List
 
@@ -27,10 +25,9 @@ from openai import OpenAI
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-API_KEY = os.environ.get("OPENAI_API_KEY", "")
-API_BASE = os.environ.get("API_BASE_URL", "https://api.openai.com/v1")
-MODEL = os.environ.get("MODEL_NAME", "gpt-4.1")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+MODEL = os.environ.get("GROQ_MODEL_NAME", "llama-3.1-8b-instant")
+API_KEY = os.environ.get("GROQ_API_KEY", "")
+API_BASE = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
 ENV_URL = os.environ.get("POLYPHARMACY_ENV_URL", "http://localhost:7860")
 
 TASKS = ["easy_screening", "budgeted_screening", "complex_tradeoff"]
@@ -119,16 +116,16 @@ def _summarise_obs(obs: Dict[str, Any]) -> str:
 def _ask_llm(obs_summary: str) -> Dict[str, Any]:
     """Call the LLM and parse a PolypharmacyAction JSON."""
     try:
-        resp = client.chat.completions.create(
+        chat_resp = client.chat.completions.create(
             model=MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": obs_summary},
             ],
-            temperature=0.2,
             max_tokens=256,
+            temperature=0.2,
         )
-        text = resp.choices[0].message.content or ""
+        text = (chat_resp.choices[0].message.content or "").strip()
         # Strip markdown fences if present
         text = text.strip()
         if text.startswith("```"):
@@ -146,7 +143,7 @@ def _ask_llm(obs_summary: str) -> Dict[str, Any]:
 
 def main() -> None:
     if not API_KEY:
-        _err("OPENAI_API_KEY is required")
+        _err("GROQ_API_KEY is required")
         sys.exit(1)
 
     run_id = str(uuid.uuid4())[:8]
@@ -159,7 +156,6 @@ def main() -> None:
             "run_id": run_id,
             "task_id": task_id,
             "model": MODEL,
-            "api_base": API_BASE,
             "episodes": EPISODES_PER_TASK,
         })
 
