@@ -25,6 +25,9 @@ dev = [
     "isort",
 ]
 
+[project.scripts]
+server = "server.app:main"
+
 [tool.setuptools.packages.find]
 where = ["backend/src"]
 

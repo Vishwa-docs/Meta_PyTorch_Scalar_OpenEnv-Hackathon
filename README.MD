@@ -1,3 +1,12 @@
+---
+title: Polypharmacy
+emoji: 📉
+colorFrom: yellow
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # PolypharmacyEnv
 
 Monorepo for an OpenEnv-compatible medication safety environment with:
@@ -12,8 +21,7 @@ Monorepo for an OpenEnv-compatible medication safety environment with:
 ## Repository Structure
 
 ```text
-openenv-polypharmacy/
-  backend/
+backend/
     main.py                      # ASGI entrypoint (uvicorn target)
     requirements.txt             # Backend dependencies
     Dockerfile                   # Backend container
@@ -32,22 +40,22 @@ openenv-polypharmacy/
       graders.py                 # Task graders
       tasks.py                   # Task/episode selection
       tests/                     # Backend tests
-  frontend/
+frontend/
     src/                         # React UI code
     package.json
     Dockerfile                   # Frontend container
-  data/
+data/
     lookups/                     # drug_metadata.csv, ddi_rules.csv, beers_criteria.csv
     processed/                   # patients_polypharmacy.csv
-  scripts/
+scripts/
     preprocess_data.py           # Synthetic data generation
     dev_backend.sh               # Local backend run helper
     dev_frontend.sh              # Local frontend run helper
     run_validation.sh            # Tests + baseline validation
-  docker-compose.yml             # Full stack orchestration
-  openenv.yaml                   # OpenEnv manifest
-  inference.py                   # Optional CLI inference baseline
-  .env.example                   # Environment template
+docker-compose.yml             # Full stack orchestration
+openenv.yaml                   # OpenEnv manifest
+inference.py                   # Baseline inference script (required at root)
+.env.example                   # Environment template
 ```
 
 ---
@@ -85,11 +93,7 @@ Create `.env`:
 cp .env.example .env
 ```
 
-Set values:
-
-- `GROQ_API_KEY=...` (required)
-- `GROQ_BASE_URL=https://api.groq.com/openai/v1` (recommended)
-- `GROQ_MODEL_NAME=llama-3.3-70b-versatile` (recommended)
+Set values for local backend integrations as needed.
 
 ---
 
@@ -173,9 +177,9 @@ This repo now includes a **root `Dockerfile`** that builds frontend + backend in
 
 In Space Settings -> Variables and Secrets:
 
-- Secret: `GROQ_API_KEY`
-- Variable: `GROQ_BASE_URL=https://api.groq.com/openai/v1`
-- Variable: `GROQ_MODEL_NAME=llama-3.3-70b-versatile`
+- Secret: `HF_TOKEN`
+- Variable: `API_BASE_URL=https://router.huggingface.co/v1`
+- Variable: `MODEL_NAME=Qwen/Qwen2.5-72B-Instruct`
 
 ### 3) Push this repository to the Space
 
@@ -223,6 +227,13 @@ Or run validation script:
 
 ```bash
 ./scripts/run_validation.sh
+```
+
+### Submission validation
+
+```bash
+openenv validate
+python inference.py
 ```
 
 ---

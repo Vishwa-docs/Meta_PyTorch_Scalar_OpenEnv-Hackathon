@@ -9,4 +9,4 @@
 **/dist
 **/.env
 **/.env.*
-!openenv-polypharmacy/.env.example
+!.env.example

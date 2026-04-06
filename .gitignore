@@ -4,7 +4,7 @@ venv/
 env/
 .env
 .env.*
-!openenv-polypharmacy/.env.example
+!.env.example
 *.py[cod]
 __pycache__/
 .pytest_cache/
@@ -29,7 +29,3 @@ pnpm-debug.log*
 *.swp
 .DS_Store
 
-# --- Project-specific nested paths ---
-openenv-polypharmacy/frontend/node_modules/
-openenv-polypharmacy/frontend/dist/
-openenv-polypharmacy/.pytest_cache/
