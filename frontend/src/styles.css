@@ -31,6 +31,8 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 .shell {
@@ -820,6 +822,13 @@ button:disabled {
   box-shadow: none;
 }
 
+/* ── Global mobile overflow prevention ───────────────────────── */
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
@@ -848,13 +857,26 @@ button:disabled {
 
 @media (max-width: 760px) {
   .shell {
-    padding: 12px 12px 24px;
+    padding: 10px 10px 24px;
+  }
+
+  .container {
+    width: 100%;
   }
 
   .topbar,
   .panel {
     border-radius: var(--radius-sm);
-    padding: 16px 18px;
+    padding: 14px 14px;
+  }
+
+  .topbar {
+    gap: 12px;
+  }
+
+  .topbar-right {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .actions {
@@ -864,14 +886,22 @@ button:disabled {
   .actions button,
   .actions select {
     width: 100%;
+    min-height: 46px;
+  }
+
+  .layout {
+    gap: 14px;
+    margin-top: 14px;
   }
 
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   .med-grid {
     grid-template-columns: 1fr;
+    max-height: none;
   }
 
   .stack-two {
@@ -886,6 +916,13 @@ button:disabled {
     left: 10px !important;
     right: 10px !important;
     max-width: calc(100vw - 20px) !important;
+    top: auto !important;
+    bottom: 20px !important;
+    width: calc(100vw - 20px) !important;
+  }
+
+  .spotlight-ring {
+    display: none;
   }
 
   .guide-footer,
@@ -893,8 +930,220 @@ button:disabled {
     flex-direction: column;
   }
 
+  .spotlight-tooltip-footer button {
+    width: 100%;
+  }
+
+  .app-footer p {
+    font-size: 0.72rem;
+  }
+
   .logs {
     max-height: 200px;
+  }
+
+  .logs div {
+    overflow-x: auto;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .risk-labels {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .conditions-row {
+    gap: 6px;
+  }
+
+  .condition-tag {
+    font-size: 0.7rem;
+    padding: 3px 10px;
+  }
+
+  .budget-note {
+    font-size: 0.82rem;
+    padding: 12px 14px;
+  }
+
+  .history-list {
+    max-height: 240px;
+  }
+
+  .history-item strong {
+    word-break: break-word;
+  }
+
+  .med-card-header {
+    flex-wrap: wrap;
+  }
+
+  .med-details {
+    flex-wrap: wrap;
+  }
+
+  .beers-flags {
+    gap: 4px;
+  }
+
+  .beers-tag {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+}
+
+/* ── Small phones (≤ 420px) ─────────────────────────────────── */
+
+@media (max-width: 420px) {
+  .shell {
+    padding: 6px 6px 20px;
+  }
+
+  .topbar,
+  .panel {
+    padding: 12px 10px;
+    border-radius: 8px;
+  }
+
+  .title-wrap {
+    min-width: 0;
+  }
+
+  .title-wrap h1 {
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .title-wrap p {
+    font-size: 0.72rem;
+  }
+
+  .layout {
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .kpi-grid div {
+    padding: 10px 12px;
+  }
+
+  .kpi-grid span {
+    font-size: 0.68rem;
+    margin-bottom: 4px;
+  }
+
+  .kpi-grid strong {
+    font-size: 0.88rem;
+  }
+
+  .med-card {
+    padding: 12px 12px;
+  }
+
+  .med-card-header strong {
+    font-size: 0.84rem;
+  }
+
+  .spotlight-tooltip {
+    padding: 14px;
+    bottom: 10px !important;
+  }
+
+  .spotlight-tooltip-header h3 {
+    font-size: 0.9rem;
+  }
+
+  .spotlight-tooltip-body {
+    font-size: 0.8rem;
+    margin-bottom: 14px;
+    line-height: 1.55;
+  }
+
+  .panel h2 {
+    font-size: 0.75rem;
+    margin-bottom: 10px;
+  }
+
+  .panel h3 {
+    font-size: 0.72rem;
+  }
+
+  .submit-btn {
+    min-height: 48px;
+    font-size: 0.88rem;
+  }
+
+  .logs {
+    max-height: 160px;
+    font-size: 0.75rem;
+    gap: 6px;
+  }
+
+  .logs div {
+    padding: 8px 10px;
+    line-height: 1.4;
+  }
+
+  .history-item {
+    padding: 10px 12px;
+  }
+
+  .history-item strong {
+    font-size: 0.82rem;
+  }
+
+  .history-detail {
+    font-size: 0.78rem;
+  }
+
+  .severity-tag, .intervention-tag {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+
+  button, select, input {
+    font-size: 0.85rem;
+    min-height: 46px;
+    padding: 10px 12px;
+  }
+
+  .action-row label,
+  .field-group label {
+    font-size: 0.72rem;
+  }
+
+  .status-chip {
+    font-size: 0.65rem;
+    padding: 4px 10px;
+  }
+
+  .guide-trigger {
+    width: 30px !important;
+    height: 30px;
+    min-height: 30px;
+    font-size: 0.85rem;
+  }
+
+  .guide-counter {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+  }
+
+  .app-footer {
+    margin-top: 16px;
+  }
+
+  .app-footer p {
+    font-size: 0.68rem;
+    line-height: 1.4;
   }
 }
 

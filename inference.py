@@ -17,12 +17,20 @@ import os
 import re
 from typing import Any, Dict, List
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import requests
 from openai import OpenAI
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
+HF_TOKEN = os.getenv("HF_TOKEN")
+# Also accept GROQ_API_KEY or API_KEY as fallback for the token
+_API_KEY = HF_TOKEN or os.getenv("GROQ_API_KEY") or os.getenv("API_KEY")
 ENV_URL = os.getenv("POLYPHARMACY_ENV_URL", "http://localhost:7860").rstrip("/")
 
 BENCHMARK = "polypharmacy_env"
@@ -31,14 +39,23 @@ MAX_STEPS = 16
 TEMPERATURE = 0.0
 MAX_TOKENS = 220
 
+VALID_ACTION_TYPES = {"query_ddi", "propose_intervention", "finish_review"}
+VALID_INTERVENTIONS = {"stop", "dose_reduce", "substitute", "add_monitoring"}
+
 SYSTEM_PROMPT = (
-    "You are a clinical-pharmacist agent. "
-    "Return one JSON action only with keys matching this schema: "
-    '{"action_type":"query_ddi|propose_intervention|finish_review",'
-    '"drug_id_1":"", "drug_id_2":"", "target_drug_id":"",'
+    "You are a clinical-pharmacist agent reviewing an elderly patient's medications. "
+    "You MUST return ONLY a single JSON object (no markdown, no explanation). "
+    "The action_type MUST be exactly one of: query_ddi, propose_intervention, finish_review. "
+    "Schema for query_ddi: "
+    '{"action_type":"query_ddi","drug_id_1":"DRUG_X","drug_id_2":"DRUG_Y"} '
+    "Schema for propose_intervention: "
+    '{"action_type":"propose_intervention","target_drug_id":"DRUG_X",'
     '"intervention_type":"stop|dose_reduce|substitute|add_monitoring",'
-    '"proposed_new_drug_id":"", "rationale":""}. '
-    "Prefer safe, high-impact actions and finish when useful actions are exhausted."
+    '"rationale":"reason"} '
+    "Schema for finish_review: "
+    '{"action_type":"finish_review"} '
+    "Strategy: First query_ddi for high-risk drug pairs (especially those with beers_flags). "
+    "Then propose_intervention for dangerous findings. Finally finish_review."
 )
 
 
@@ -83,9 +100,40 @@ def _safe_json(text: str) -> Dict[str, Any]:
     try:
         data = json.loads(text)
         if isinstance(data, dict):
-            return data
+            return _sanitize_action(data)
     except Exception:
         pass
+    return {"action_type": "finish_review"}
+
+
+def _sanitize_action(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Build a clean action dict with only the fields relevant to the action type."""
+    atype = raw.get("action_type", "")
+    if atype not in VALID_ACTION_TYPES:
+        return {"action_type": "finish_review"}
+
+    if atype == "query_ddi":
+        return {
+            "action_type": "query_ddi",
+            "drug_id_1": raw.get("drug_id_1") or None,
+            "drug_id_2": raw.get("drug_id_2") or None,
+        }
+    if atype == "propose_intervention":
+        it = raw.get("intervention_type", "")
+        if it not in VALID_INTERVENTIONS:
+            it = "add_monitoring"
+        result: Dict[str, Any] = {
+            "action_type": "propose_intervention",
+            "target_drug_id": raw.get("target_drug_id") or None,
+            "intervention_type": it,
+        }
+        new_drug = raw.get("proposed_new_drug_id") or None
+        if new_drug:
+            result["proposed_new_drug_id"] = new_drug
+        rationale = raw.get("rationale") or None
+        if rationale:
+            result["rationale"] = rationale
+        return result
     return {"action_type": "finish_review"}
 
 
@@ -129,6 +177,9 @@ def _reset(task_id: str) -> Dict[str, Any]:
 
 def _step(action: Dict[str, Any]) -> Dict[str, Any]:
     r = requests.post(f"{ENV_URL}/step", json={"action": action}, timeout=45)
+    if r.status_code == 422:
+        # Invalid action — return a penalty and let the agent continue
+        return {"observation": {}, "reward": -0.1, "done": False, "info": {"error": r.text[:200]}}
     r.raise_for_status()
     return r.json()
 
@@ -168,17 +219,16 @@ def run_task(client: OpenAI, task_id: str) -> None:
                 success = score > 0.0
                 break
     except Exception:
-        # Still emit END to keep evaluator parser stable.
         success = False
     finally:
         log_end(success=success, steps=steps, score=score, rewards=rewards)
 
 
 def main() -> int:
-    if not HF_TOKEN:
-        print("HF_TOKEN is required", flush=True)
+    if not _API_KEY:
+        print("HF_TOKEN (or GROQ_API_KEY / API_KEY) is required", flush=True)
         return 1
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+    client = OpenAI(base_url=API_BASE_URL, api_key=_API_KEY)
     for task in TASKS:
         run_task(client, task)
     return 0
