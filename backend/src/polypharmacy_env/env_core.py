@@ -354,7 +354,7 @@ class PolypharmacyEnv(
                 self._total_drug_changes,
                 self._critical_stopped_without_sub,
             )
-        return 0.000001  # strict (0, 1) range required
+        return 0.001  # strict (0, 1) range required
 
     def _get_severe_pairs(self) -> List[Tuple[str, str]]:
         """Return all severe DDI pairs present in the *initial* medication list."""

@@ -26,8 +26,8 @@ except ImportError:
 import requests
 from openai import OpenAI
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 # Also accept GROQ_API_KEY or API_KEY as fallback for the token
 _API_KEY = HF_TOKEN or os.getenv("GROQ_API_KEY") or os.getenv("API_KEY")
@@ -69,7 +69,7 @@ def _fmt_reward(v: float) -> str:
 
 def _clamp01(v: float) -> float:
     """Clamp score to strict (0, 1) — never exactly 0.0 or 1.0."""
-    return max(0.000001, min(0.999999, float(v)))
+    return max(0.001, min(0.999, float(v)))
 
 
 def log_start(task: str) -> None:
@@ -88,7 +88,7 @@ def log_step(step: int, action_str: str, reward: float, done: bool, error: str |
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
     rewards_str = ",".join(_fmt_reward(r) for r in rewards)
     print(
-        f"[END] success={_b(success)} steps={steps} score={_clamp01(score):.6f} rewards={rewards_str}",
+        f"[END] success={_b(success)} steps={steps} score={_clamp01(score):.3f} rewards={rewards_str}",
         flush=True,
     )
 
@@ -189,7 +189,7 @@ def run_task(client: OpenAI, task_id: str) -> None:
     rewards: List[float] = []
     steps = 0
     success = False
-    score = 0.000001  # strict (0, 1) — never exactly 0.0
+    score = 0.001  # strict (0, 1) — never exactly 0.0
     log_start(task_id)
     try:
         reset_payload = _reset(task_id)
