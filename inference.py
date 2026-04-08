@@ -26,8 +26,8 @@ except ImportError:
 import requests
 from openai import OpenAI
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 HF_TOKEN = os.getenv("HF_TOKEN")
 # Also accept GROQ_API_KEY or API_KEY as fallback for the token
 _API_KEY = HF_TOKEN or os.getenv("GROQ_API_KEY") or os.getenv("API_KEY")
