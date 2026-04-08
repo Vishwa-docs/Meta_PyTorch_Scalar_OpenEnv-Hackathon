@@ -68,7 +68,7 @@ def _fmt_reward(v: float) -> str:
 
 
 def _clamp01(v: float) -> float:
-    """Clamp score to strict (0, 1) — never exactly 0.0 or 1.0."""
+    """Clamp score to strict (0.001, 0.999) — never outside this range."""
     return max(0.001, min(0.999, float(v)))
 
 
@@ -179,8 +179,8 @@ def _reset(task_id: str) -> Dict[str, Any]:
 def _step(action: Dict[str, Any]) -> Dict[str, Any]:
     r = requests.post(f"{ENV_URL}/step", json={"action": action}, timeout=45)
     if r.status_code == 422:
-        # Invalid action — return a penalty and let the agent continue
-        return {"observation": {}, "reward": -0.1, "done": False, "info": {"error": r.text[:200]}}
+        # Invalid action — return a clamped penalty and let the agent continue
+        return {"observation": {}, "reward": 0.01, "done": False, "info": {"error": r.text[:200]}}
     r.raise_for_status()
     return r.json()
 
@@ -189,7 +189,7 @@ def run_task(client: OpenAI, task_id: str) -> None:
     rewards: List[float] = []
     steps = 0
     success = False
-    score = 0.001  # strict (0, 1) — never exactly 0.0
+    score = 0.001  # strict (0.001, 0.999) — never outside this range
     log_start(task_id)
     try:
         reset_payload = _reset(task_id)
@@ -203,7 +203,7 @@ def run_task(client: OpenAI, task_id: str) -> None:
             action_str = json.dumps(action, separators=(",", ":"))
             step_payload = _step(action)
             obs = step_payload.get("observation", {})
-            reward = float(step_payload.get("reward") or 0.0)
+            reward = _clamp01(float(step_payload.get("reward") or 0.0))
             done = bool(step_payload.get("done", False))
             metadata = (obs or {}).get("metadata", {}) or {}
             last_error = metadata.get("error")
@@ -217,7 +217,7 @@ def run_task(client: OpenAI, task_id: str) -> None:
                     score = _clamp01(float(raw_score))
                 else:
                     score = _clamp01(sum(max(0.0, r) for r in rewards) / max(len(rewards), 1))
-                success = score > 0.0
+                success = score > 0.001
                 break
     except Exception:
         success = False

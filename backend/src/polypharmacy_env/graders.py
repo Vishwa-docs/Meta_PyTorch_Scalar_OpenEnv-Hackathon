@@ -12,7 +12,7 @@ from .models import InterventionRecord
 
 _EPS = 1e-8
 
-# Scores must be strictly in (0, 1) — never exactly 0.0 or 1.0
+# Scores must be strictly in (0.001, 0.999) — never outside this range
 _SCORE_MIN = 0.001
 _SCORE_MAX = 0.999
 

@@ -25,6 +25,15 @@ from .models import (
     PolypharmacyState,
 )
 from .rewards import compute_regimen_risk, compute_shaped_reward
+
+# ── Reward clamping ──────────────────────────────────────────────────────────
+_REWARD_MIN = 0.001
+_REWARD_MAX = 0.999
+
+
+def _clamp_reward(v: float) -> float:
+    """Clamp any reward to strict (0.001, 0.999) bounds."""
+    return max(_REWARD_MIN, min(_REWARD_MAX, v))
 from .tasks import get_task_config, sample_episode
 
 
@@ -123,10 +132,10 @@ class PolypharmacyEnv(
         # Validate basic action structure
         valid, err = self._validate_action(action)
         if not valid:
-            reward = compute_shaped_reward(
+            reward = _clamp_reward(compute_shaped_reward(
                 self._current_risk, self._current_risk,
                 action.action_type, is_invalid=True,
-            )
+            ))
             info["error"] = err
             self._step_count += 1
             return self._check_timeout_and_build_obs(reward, info)
@@ -140,7 +149,7 @@ class PolypharmacyEnv(
         elif action.action_type == "finish_review":
             self._done = True
             score = self._run_grader()
-            reward = score  # terminal bonus
+            reward = _clamp_reward(score)  # terminal bonus
             info["grader_score"] = score
 
         self._step_count += 1
@@ -187,10 +196,10 @@ class PolypharmacyEnv(
         assert action.drug_id_1 and action.drug_id_2
 
         if self._remaining_query_budget <= 0:
-            reward = compute_shaped_reward(
+            reward = _clamp_reward(compute_shaped_reward(
                 self._current_risk, self._current_risk,
                 "query_ddi", is_invalid=True,
-            )
+            ))
             info["error"] = "Query budget exhausted"
             return reward, info
 
@@ -210,12 +219,12 @@ class PolypharmacyEnv(
         if discovered_severe:
             self._severe_moderate_discovered += 1
 
-        reward = compute_shaped_reward(
+        reward = _clamp_reward(compute_shaped_reward(
             self._current_risk, self._current_risk,
             "query_ddi",
             discovered_severe=(result.severity == "severe"),
             discovered_moderate=(result.severity == "moderate"),
-        )
+        ))
         info["ddi_result"] = {
             "severity": result.severity,
             "recommendation": result.recommendation,
@@ -229,10 +238,10 @@ class PolypharmacyEnv(
         assert action.intervention_type and action.intervention_type != "none"
 
         if self._remaining_intervention_budget <= 0:
-            reward = compute_shaped_reward(
+            reward = _clamp_reward(compute_shaped_reward(
                 self._current_risk, self._current_risk,
                 "propose_intervention", is_invalid=True,
-            )
+            ))
             info["error"] = "Intervention budget exhausted"
             return reward, info
 
@@ -244,10 +253,10 @@ class PolypharmacyEnv(
                 break
 
         if target_idx is None:
-            reward = compute_shaped_reward(
+            reward = _clamp_reward(compute_shaped_reward(
                 self._current_risk, self._current_risk,
                 "propose_intervention", is_invalid=True,
-            )
+            ))
             info["error"] = f"Drug {action.target_drug_id} not in current medications"
             return reward, info
 
@@ -321,7 +330,7 @@ class PolypharmacyEnv(
             step_index=self._step_count,
         ))
 
-        reward = compute_shaped_reward(previous_risk, self._current_risk, "propose_intervention")
+        reward = _clamp_reward(compute_shaped_reward(previous_risk, self._current_risk, "propose_intervention"))
         info["risk_delta"] = risk_delta
         return reward, info
 
@@ -354,7 +363,7 @@ class PolypharmacyEnv(
                 self._total_drug_changes,
                 self._critical_stopped_without_sub,
             )
-        return 0.001  # strict (0, 1) range required
+        return 0.001  # strict (0.001, 0.999) range required
 
     def _get_severe_pairs(self) -> List[Tuple[str, str]]:
         """Return all severe DDI pairs present in the *initial* medication list."""
@@ -377,8 +386,8 @@ class PolypharmacyEnv(
         if not self._done and self._step_count >= self._task_cfg.max_steps:
             self._done = True
             score = self._run_grader()
-            # Terminal reward = grader score only (strictly in (0, 1))
-            reward = score
+            # Terminal reward = grader score only (strictly in [0.01, 0.99])
+            reward = _clamp_reward(score)
             info["timeout"] = True
             info["grader_score"] = score
 

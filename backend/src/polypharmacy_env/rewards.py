@@ -75,22 +75,20 @@ def compute_shaped_reward(
     reward = 0.0
 
     if is_invalid:
-        return -INVALID_ACTION_PENALTY
-
-    if is_timeout:
-        return -TIMEOUT_PENALTY
-
-    if action_type == "query_ddi":
+        reward = -INVALID_ACTION_PENALTY
+    elif is_timeout:
+        reward = -TIMEOUT_PENALTY
+    elif action_type == "query_ddi":
         reward -= QUERY_COST
         if discovered_severe:
             reward += SEVERE_DDI_DISCOVERY_BONUS
         elif discovered_moderate:
             reward += MODERATE_DDI_DISCOVERY_BONUS
-
     elif action_type == "propose_intervention":
         reward += (previous_risk - new_risk)
         reward -= INTERVENTION_COST
 
     # finish_review terminal bonus is added by the caller after grading
 
-    return max(0.001, reward)
+    # Clamp all rewards to strict (0.001, 0.999) range
+    return max(0.001, min(0.999, reward))
