@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 from .config import (
     INTERVENTION_COST,
     INVALID_ACTION_PENALTY,
+    MODERATE_DDI_DISCOVERY_BONUS,
     QUERY_COST,
     SEVERE_DDI_DISCOVERY_BONUS,
     TIMEOUT_PENALTY,
@@ -39,8 +40,8 @@ def compute_regimen_risk(
         if rule is not None:
             risk += rule.base_risk_score
 
-    # 2. Beers violations
-    beers_weight = {"avoid": 0.25, "caution": 0.10, "dose_adjust": 0.08, "avoid_in_condition": 0.20}
+    # 2. Beers violations (weights reflect clinical severity)
+    beers_weight = {"avoid": 0.30, "caution": 0.12, "dose_adjust": 0.10, "avoid_in_condition": 0.25}
     for bc in beers_criteria:
         if bc.drug_id not in drug_set:
             continue
@@ -68,6 +69,7 @@ def compute_shaped_reward(
     is_invalid: bool = False,
     is_timeout: bool = False,
     discovered_severe: bool = False,
+    discovered_moderate: bool = False,
 ) -> float:
     """Compute the step-level shaped reward."""
     reward = 0.0
@@ -82,6 +84,8 @@ def compute_shaped_reward(
         reward -= QUERY_COST
         if discovered_severe:
             reward += SEVERE_DDI_DISCOVERY_BONUS
+        elif discovered_moderate:
+            reward += MODERATE_DDI_DISCOVERY_BONUS
 
     elif action_type == "propose_intervention":
         reward += (previous_risk - new_risk)

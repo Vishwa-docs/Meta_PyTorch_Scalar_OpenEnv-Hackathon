@@ -23,9 +23,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# --- Project-specific ---
+PROMPT.md
+
 # --- Build / temp ---
 *.log
 *.tmp
 *.swp
 .DS_Store
 
+arXiv-2212.05190v3/

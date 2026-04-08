@@ -214,6 +214,7 @@ class PolypharmacyEnv(
             self._current_risk, self._current_risk,
             "query_ddi",
             discovered_severe=(result.severity == "severe"),
+            discovered_moderate=(result.severity == "moderate"),
         )
         info["ddi_result"] = {
             "severity": result.severity,

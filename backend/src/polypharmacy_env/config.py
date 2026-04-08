@@ -18,11 +18,15 @@ DRUG_METADATA_CSV = LOOKUPS_DIR / "drug_metadata.csv"
 PATIENTS_CSV = PROCESSED_DIR / "patients_polypharmacy.csv"
 
 # ── Reward hyper-parameters ──────────────────────────────────────────────────
-QUERY_COST: float = 0.01
-INTERVENTION_COST: float = 0.02
-INVALID_ACTION_PENALTY: float = 0.10
-TIMEOUT_PENALTY: float = 0.20
-SEVERE_DDI_DISCOVERY_BONUS: float = 0.03
+# Tuned for clear RL signal: discovering severe DDIs should notably outweigh
+# query cost, interventions should have meaningful cost-benefit tradeoffs,
+# and invalid/timeout penalties should strongly discourage degenerate policies.
+QUERY_COST: float = 0.015          # each query slightly costs budget
+INTERVENTION_COST: float = 0.025   # interventions are more expensive to discourage spam
+INVALID_ACTION_PENALTY: float = 0.15  # strong deterrent for malformed actions
+TIMEOUT_PENALTY: float = 0.25     # harsh enough to encourage timely finish_review
+SEVERE_DDI_DISCOVERY_BONUS: float = 0.05  # rewarding high-value information discovery
+MODERATE_DDI_DISCOVERY_BONUS: float = 0.02  # smaller bonus for moderate findings
 
 # ── Task parameters ─────────────────────────────────────────────────────────
 
