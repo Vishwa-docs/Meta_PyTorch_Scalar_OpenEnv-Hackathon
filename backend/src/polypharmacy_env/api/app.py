@@ -103,9 +103,12 @@ def create_polypharmacy_app():
         obs_data = _serialize_obs(obs)
         # Extract metadata for top-level info
         metadata = obs_data.get("metadata", {}) or {}
+        raw_reward = obs_data.get("shaped_reward", 0.001)
+        # Clamp reward to strict (0.001, 0.999) bounds
+        clamped_reward = max(0.001, min(0.999, float(raw_reward)))
         return {
             "observation": obs_data,
-            "reward": obs_data.get("shaped_reward", 0.0),
+            "reward": clamped_reward,
             "done": obs_data.get("done", False),
             "info": metadata,
         }

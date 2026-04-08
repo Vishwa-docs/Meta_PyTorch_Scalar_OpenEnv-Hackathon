@@ -38,7 +38,7 @@ PolypharmacyEnv frames medication review as a **Markov Decision Process (MDP)**:
 
 - **State**: Patient profile (age, conditions, organ function) + current medication list + interaction history
 - **Action space**: `query_ddi(drug_i, drug_j)` | `propose_intervention(target, type)` | `finish_review`
-- **Reward**: Shaped, dense signal at every step (not sparse end-of-episode). Queries cost budget (-0.015), discovering severe DDIs earns bonus (+0.05), successful interventions earn proportional risk reduction minus cost, invalid actions are penalized (-0.15), and `finish_review` triggers a grader that returns a terminal score in [0.0, 1.0].
+- **Reward**: Shaped, dense signal at every step (not sparse end-of-episode), strictly in the range (0.001, 0.999). Queries have a small cost, but discovering severe DDIs earns a larger bonus. Successful interventions earn proportional risk reduction. Invalid actions and timeouts are penalized but all values are clamped to positive. `finish_review` triggers a grader returning a terminal score in (0.001, 0.999).
 - **Constraint**: Finite query and intervention budgets, creating a resource-allocation optimization problem.
 
 This MDP is what makes the problem fundamentally different from static risk scoring: the agent must **decide what information to acquire** (which drug pairs to query) and **which interventions to prioritize**, all under budget constraints — a sequential decision problem that RL is designed to solve.
@@ -171,23 +171,23 @@ Each observation contains the full patient context:
 - **Medium**: 50% risk reduction + 30% intervention precision + 20% query efficiency
 - **Hard**: Risk reduction minus penalties for excessive drug changes and stopping critical medications without substitution
 
-All graders are deterministic, producing scores in `[0.0, 1.0]`.
+All graders are deterministic, producing scores strictly in `(0.001, 0.999)`.
 
 ---
 
 ## Reward Function Design
 
-The shaped reward provides signal at every step (not just episode end):
+The shaped reward provides signal at every step (not just episode end). All rewards are strictly positive, clamped to the range **(0.001, 0.999)**:
 
-| Event | Reward |
-|---|---|
-| DDI query (any) | -0.015 (budget cost) |
-| Discovering a severe DDI | +0.05 bonus |
-| Discovering a moderate DDI | +0.02 bonus |
-| Successful intervention | +(risk_reduction) - 0.025 cost |
-| Invalid action | -0.15 penalty |
-| Episode timeout | -0.25 penalty |
-| Finish review | +grader_score (0.0–1.0) |
+| Event | Raw Signal | Clamped Output |
+|---|---|---|
+| DDI query (no finding) | small cost | 0.001 (floor) |
+| Discovering a severe DDI | cost + bonus | ~0.035 |
+| Discovering a moderate DDI | cost + bonus | ~0.005 |
+| Successful intervention | risk_reduction - cost | proportional to risk improvement |
+| Invalid action | penalty | 0.001 (floor) |
+| Episode timeout | penalty | 0.001 (floor) |
+| Finish review | grader_score | 0.001–0.999 |
 
 **Regimen risk** aggregates DDI pairwise scores, Beers-criteria violation weights, and high-risk elderly drug penalties, normalized by regimen size and clipped to `[0.0, 1.0]`.
 
