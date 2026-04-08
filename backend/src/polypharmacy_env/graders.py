@@ -13,8 +13,8 @@ from .models import InterventionRecord
 _EPS = 1e-8
 
 # Scores must be strictly in (0, 1) — never exactly 0.0 or 1.0
-_SCORE_MIN = 0.01
-_SCORE_MAX = 0.99
+_SCORE_MIN = 0.000001
+_SCORE_MAX = 0.999999
 
 
 def _clip(x: float) -> float:
