@@ -376,12 +376,9 @@ class PolypharmacyEnv(
 
         if not self._done and self._step_count >= self._task_cfg.max_steps:
             self._done = True
-            timeout_penalty = compute_shaped_reward(
-                self._current_risk, self._current_risk,
-                "finish_review", is_timeout=True,
-            )
             score = self._run_grader()
-            reward += timeout_penalty + score
+            # Terminal reward = grader score only (strictly in (0, 1))
+            reward = score
             info["timeout"] = True
             info["grader_score"] = score
 
