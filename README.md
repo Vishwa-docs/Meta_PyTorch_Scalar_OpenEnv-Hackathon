@@ -1,16 +1,3 @@
----
-title: PolypharmacyEnv
-emoji: 💊
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
-tags:
-  - openenv
-  - healthcare
-  - reinforcement-learning
----
-
 # PolypharmacyEnv — Elderly Medication Safety via Reinforcement Learning
 
 An [OpenEnv](https://github.com/meta-pytorch/OpenEnv)-compliant environment that simulates **elderly polypharmacy medication review**. An RL agent acts as a clinical pharmacist assistant: it queries drug-drug interactions (DDIs), identifies Beers-criteria violations, and proposes safe interventions — all under resource-constrained budgets.
