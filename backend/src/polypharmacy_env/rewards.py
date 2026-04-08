@@ -93,4 +93,4 @@ def compute_shaped_reward(
 
     # finish_review terminal bonus is added by the caller after grading
 
-    return max(0.0, reward)
+    return max(0.001, reward)
