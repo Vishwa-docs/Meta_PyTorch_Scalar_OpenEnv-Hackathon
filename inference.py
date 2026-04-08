@@ -68,7 +68,8 @@ def _fmt_reward(v: float) -> str:
 
 
 def _clamp01(v: float) -> float:
-    return max(0.0, min(1.0, float(v)))
+    """Clamp score to strict (0, 1) — never exactly 0.0 or 1.0."""
+    return max(0.01, min(0.99, float(v)))
 
 
 def log_start(task: str) -> None:
@@ -188,7 +189,7 @@ def run_task(client: OpenAI, task_id: str) -> None:
     rewards: List[float] = []
     steps = 0
     success = False
-    score = 0.0
+    score = 0.01  # strict (0, 1) — never exactly 0.0
     log_start(task_id)
     try:
         reset_payload = _reset(task_id)
